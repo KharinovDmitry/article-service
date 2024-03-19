@@ -1,0 +1,39 @@
+package router
+
+import (
+	"article-service/internal/server/handlers"
+	"github.com/gin-gonic/gin"
+	"net/http"
+)
+
+type Router struct {
+	address        string
+	articleHandler handlers.ArticleHandler
+}
+
+func NewRouter(address string, articleHandler handlers.ArticleHandler) *Router {
+	return &Router{
+		address:        address,
+		articleHandler: articleHandler,
+	}
+}
+
+func (r *Router) Run() {
+	g := gin.New()
+
+	api := g.Group("/api")
+
+	api.GET("/article", r.articleHandler.GetAllArticles)
+	article := api.Group("/article")
+	{
+		article.GET("/", r.articleHandler.GetArticleByID)
+		article.POST("/create", r.articleHandler.CreateArticle)
+		article.DELETE("/delete", r.articleHandler.DeleteArticle)
+		article.PUT("/update", r.articleHandler.UpdateArticle)
+	}
+
+	g.GET("/health", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+}

@@ -7,10 +7,18 @@ type Tag struct {
 	Title string `db:"title"`
 }
 
-func TagsDBToTags(tag []Tag) []domain.Tag {
-
+func TagsDBToTags(tags []Tag) []domain.Tag {
+	res := make([]domain.Tag, 0)
+	for _, tag := range tags {
+		res = append(res, domain.Tag(tag))
+	}
+	return res
 }
 
-func TagsToTagsDB(tag []domain.Tag) []Tag {
-
+func TagsToTagsDB(tags []domain.Tag) []Tag {
+	res := make([]Tag, 0)
+	for _, tag := range tags {
+		res = append(res, Tag(tag))
+	}
+	return res
 }

@@ -12,6 +12,8 @@ type ArticleRepositoryContract interface {
 	AddArticle(ctx context.Context, article domain.Article) error
 	DeleteArticle(ctx context.Context, id int) error
 	UpdateArticle(ctx context.Context, id int, newArticle domain.Article) error
+	AddTagToArticle(ctx context.Context, articleId int, tagId int) error
+	RemoveTagFromArticle(ctx context.Context, articleId int, tagId int) error
 }
 
 type ArticleService struct {
@@ -40,6 +42,9 @@ func (s *ArticleService) GetAllArticles(ctx context.Context) ([]domain.Article, 
 
 func (s *ArticleService) CreateArticle(ctx context.Context, article domain.Article) error {
 	err := s.ArticleRepo.AddArticle(ctx, article)
+	if err != nil {
+		return fmt.Errorf("In ArticleService(CreateArticle): %w", err)
+	}
 	if err != nil {
 		return fmt.Errorf("In ArticleService(CreateArticle): %w", err)
 	}

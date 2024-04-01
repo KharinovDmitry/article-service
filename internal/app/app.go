@@ -1,19 +1,22 @@
 package app
 
 import (
+	"article-service/cmd/migrator"
 	"article-service/internal/config"
 	"article-service/internal/server/handlers"
 	"article-service/internal/server/router"
 	"article-service/internal/services"
 	"article-service/internal/storage/repositories"
-	_ "github.com/jackc/pgx"
-	"github.com/jmoiron/sqlx"
+	adapter "article-service/lib/adapter/db"
 )
 
 func MustRun(cfg config.Config) {
-	conn := ConnPostgress(cfg.ConnStr)
+	migrator.MustRun(cfg.ConnStr, cfg.DriverName, cfg.MigrationsDir)
 
-	articleRepo := repositories.NewArticleRepository(conn)
+	db := adapter.NewPostgresAdapter(cfg.TimeoutDbContext, cfg.ConnStr)
+	defer db.Close()
+
+	articleRepo := repositories.NewArticleRepository(db)
 
 	articleService := services.NewArticleService(articleRepo)
 
@@ -22,9 +25,4 @@ func MustRun(cfg config.Config) {
 	router := router.NewRouter(cfg.Address, *articleHandler)
 
 	router.Run()
-}
-
-func ConnPostgress(connStr string) *sqlx.DB {
-	db := sqlx.MustOpen("postgres", connStr)
-	return db
 }

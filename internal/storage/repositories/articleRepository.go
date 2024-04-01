@@ -2,33 +2,42 @@ package repositories
 
 import (
 	"article-service/internal/domain"
+	"article-service/internal/storage"
 	"article-service/internal/storage/dbModels"
+	"article-service/lib/adapter/db"
 	"context"
-	"github.com/jmoiron/sqlx"
+	sqlx "database/sql"
+	"errors"
 )
 
 type ArticleRepository struct {
-	db *sqlx.DB
+	db adapter.DBAdapter
 }
 
-func NewArticleRepository(conn *sqlx.DB) *ArticleRepository {
+func NewArticleRepository(db adapter.DBAdapter) *ArticleRepository {
 	return &ArticleRepository{
-		db: conn,
+		db: db,
 	}
 }
 
 func (a *ArticleRepository) FindArticleByID(ctx context.Context, id int) (domain.Article, error) {
 	sql := "SELECT (id, title, text, tags, publication_date, author_username) FROM articles WHERE id = $1"
 	var article dbModels.Article
-	err := a.db.Get(&article, sql, id)
+	err := a.db.Query(ctx, &article, sql, id)
 	if err != nil {
+		if errors.Is(err, sqlx.ErrNoRows) {
+			return domain.Article{}, storage.ErrArticleNotFound
+		}
 		return domain.Article{}, err
 	}
 
 	sql = "SELECT (id, title) FROM tags WHERE id IN (SELECT tag_id FROM article_tag_pairs WHERE article_id = $1)"
 	var articleTagPairs []dbModels.Tag
-	err = a.db.Select(&articleTagPairs, sql, id)
+	err = a.db.Query(ctx, &articleTagPairs, sql, id)
 	if err != nil {
+		if errors.Is(err, sqlx.ErrNoRows) {
+			return domain.Article{}, storage.ErrTagNotFound
+		}
 		return domain.Article{}, err
 	}
 
@@ -38,15 +47,45 @@ func (a *ArticleRepository) FindArticleByID(ctx context.Context, id int) (domain
 func (a *ArticleRepository) GetAllArticles(ctx context.Context) ([]domain.Article, error) {
 	sql := "SELECT (id, title, text, tags, publication_date, author_username) FROM articles"
 	var articles []dbModels.Article
-	err := a.db.Select(&articles, sql)
+	err := a.db.Query(ctx, &articles, sql)
 	if err != nil {
+		if errors.Is(err, sqlx.ErrNoRows) {
+			return nil, storage.ErrArticleNotFound
+		}
 		return nil, err
 	}
 
 	sql = "SELECT (id, title) FROM tags"
 	var tags []dbModels.Tag
-	err = a.db.Select(&tags, sql)
+	err = a.db.Query(ctx, &tags, sql)
 	if err != nil {
+		if errors.Is(err, sqlx.ErrNoRows) {
+			return nil, storage.ErrTagNotFound
+		}
+		return nil, err
+	}
+
+	return dbModels.ArticlesDBToArticles(articles, tags), err
+}
+
+func (a *ArticleRepository) FindArticlesByTag(ctx context.Context, tagID int) ([]domain.Article, error) {
+	sql := "SELECT (id, title, text, tags, publication_date, author_username) FROM articles WHERE id IN (SELECT SELECT article_id FROM article_tag_pairs WHERE tag_id = $1)"
+	var articles []dbModels.Article
+	err := a.db.Query(ctx, &articles, sql, tagID)
+	if err != nil {
+		if errors.Is(err, sqlx.ErrNoRows) {
+			return nil, storage.ErrArticleNotFound
+		}
+		return nil, err
+	}
+
+	sql = "SELECT (id, title) FROM tags WHERE id IN (SELECT tag_id FROM article_tag_pairs WHERE article_id in (SELECT SELECT article_id FROM article_tag_pairs WHERE tag_id = $1))"
+	var tags []dbModels.Tag
+	err = a.db.Query(ctx, &tags, sql, tagID)
+	if err != nil {
+		if errors.Is(err, sqlx.ErrNoRows) {
+			return nil, storage.ErrTagNotFound
+		}
 		return nil, err
 	}
 
@@ -55,8 +94,11 @@ func (a *ArticleRepository) GetAllArticles(ctx context.Context) ([]domain.Articl
 
 func (a *ArticleRepository) AddArticle(ctx context.Context, article domain.Article) error {
 	sql := "INSERT INTO articles(text, title, author_username, publication_date)  VALUES ($1, $2, $3, $4)"
-	_, err := a.db.Exec(sql, article.Text, article.Title, article.AuthorUsername, article.PublicationDate)
+	err := a.db.Query(ctx, sql, article.Text, article.Title, article.AuthorUsername, article.PublicationDate)
 	if err != nil {
+		if errors.Is(err, sqlx.ErrNoRows) {
+			return storage.ErrArticleNotFound
+		}
 		return err
 	}
 
@@ -72,7 +114,7 @@ func (a *ArticleRepository) AddArticle(ctx context.Context, article domain.Artic
 
 func (a *ArticleRepository) DeleteArticle(ctx context.Context, id int) error {
 	sql := "DELETE FROM articles WHERE id = $1"
-	_, err := a.db.Exec(sql, id)
+	err := a.db.Execute(ctx, sql, id)
 	if err != nil {
 		return err
 	}
@@ -81,13 +123,13 @@ func (a *ArticleRepository) DeleteArticle(ctx context.Context, id int) error {
 
 func (a *ArticleRepository) UpdateArticle(ctx context.Context, id int, newArticle domain.Article) error {
 	sql := "UPDATE articles SET text=$1, title=$2, author_username=$3, publication_date=$4 WHERE id = $5"
-	_, err := a.db.Exec(sql, newArticle.Text, newArticle.Title, newArticle.AuthorUsername, newArticle.PublicationDate, id)
+	err := a.db.Execute(ctx, sql, newArticle.Text, newArticle.Title, newArticle.AuthorUsername, newArticle.PublicationDate, id)
 	if err != nil {
 		return err
 	}
 
 	sql = "DELETE FROM article_tag_pairs WHERE article_id = $1"
-	_, err = a.db.Exec(sql, id)
+	err = a.db.Execute(ctx, sql, id)
 	if err != nil {
 		return err
 	}
@@ -104,7 +146,7 @@ func (a *ArticleRepository) UpdateArticle(ctx context.Context, id int, newArticl
 
 func (a *ArticleRepository) AddTagToArticle(ctx context.Context, articleId int, tagId int) error {
 	sql := "INSERT INTO article_tag_pairs(article_id, tag_id) VALUES ($1, $2)"
-	_, err := a.db.Exec(sql, articleId, tagId)
+	err := a.db.Execute(ctx, sql, articleId, tagId)
 	if err != nil {
 		return err
 	}
@@ -113,7 +155,7 @@ func (a *ArticleRepository) AddTagToArticle(ctx context.Context, articleId int, 
 
 func (a *ArticleRepository) RemoveTagFromArticle(ctx context.Context, articleId int, tagId int) error {
 	sql := "DELETE FROM article_tag_pairs WHERE article_id = $1 AND tag_id = $2"
-	_, err := a.db.Exec(sql, articleId, tagId)
+	err := a.db.Execute(ctx, sql, articleId, tagId)
 	if err != nil {
 		return err
 	}

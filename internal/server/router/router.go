@@ -4,6 +4,8 @@ import (
 	"article-service/internal/server/handlers"
 	"article-service/internal/server/middlewares"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"net/http"
 )
 
@@ -36,6 +38,8 @@ func (r *Router) Run() {
 	g.GET("/health", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
+
+	g.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	g.Run(r.address)
 }

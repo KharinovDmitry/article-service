@@ -1,10 +1,15 @@
-package cmd
+package main
 
 import (
+	_ "article-service/cmd/docs"
 	"article-service/internal/app"
 	"article-service/internal/config"
 	"flag"
 )
+
+// @title Articles Service
+// @host localhost:8080
+// @BasePath /
 
 func main() {
 	var configPath string

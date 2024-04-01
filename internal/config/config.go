@@ -6,8 +6,11 @@ import (
 )
 
 type Config struct {
-	ConnStr string `yaml:"conn_str"`
-	Address string `yaml:"address"`
+	ConnStr          string `yaml:"conn_str"`
+	Address          string `yaml:"address"`
+	DriverName       string `yaml:"driver_name"`
+	MigrationsDir    string `yaml:"migrations_dir"`
+	TimeoutDbContext int    `yaml:"timeout_db_context"`
 }
 
 func MustLoadConfig(configPath string) Config {
@@ -18,7 +21,7 @@ func MustLoadConfig(configPath string) Config {
 		panic("Config not found!")
 	}
 
-	err = yaml.Unmarshal(file, config)
+	err = yaml.Unmarshal(file, &config)
 
 	if err != nil {
 		panic("Could not unmarshal config correct.")

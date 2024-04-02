@@ -1,13 +1,15 @@
 package handlers
 
 import (
-	_ "article-service/cmd/docs"
+	_ "article-service/docs"
 	"article-service/internal/domain"
 	"article-service/internal/server/dto"
 	"context"
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type ArticleServiceContract interface {
@@ -63,6 +65,7 @@ func (h *ArticleHandler) GetArticleByID(c *gin.Context) {
 func (h *ArticleHandler) GetAllArticles(c *gin.Context) {
 	articles, err := h.articleService.GetAllArticles(c.Request.Context())
 	if err != nil {
+		log.Println(err.Error())
 		apiErr := dto.NewApiError(err)
 		c.AbortWithStatusJSON(apiErr.StatusCode, apiErr.Message)
 		return
@@ -76,18 +79,28 @@ func (h *ArticleHandler) GetAllArticles(c *gin.Context) {
 // @Tags Article
 // @Accept json
 // @Produce json
+// @Param input body dto.AddArticleRequest true "LogIn"
 // @Success 200 {object} dto.Success
 // @Failure 500 {object} dto.ApiError
 // @Router /api/article/create [post]
 func (h *ArticleHandler) CreateArticle(c *gin.Context) {
-	var newArticleDTO dto.ArticleDTO
+	var newArticleDTO dto.AddArticleRequest
 	if err := c.ShouldBindJSON(&newArticleDTO); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, "Некорректный article")
 		return
 	}
 
-	err := h.articleService.CreateArticle(c.Request.Context(), dto.ArticleDTOtoArticle(newArticleDTO))
+	err := h.articleService.CreateArticle(c.Request.Context(), domain.Article{
+		ID:              0,
+		Title:           newArticleDTO.Title,
+		Text:            newArticleDTO.Text,
+		Tags:            dto.TagsDTOtoTags(newArticleDTO.Tags),
+		PublicationDate: time.Now(),
+		AuthorUsername:  newArticleDTO.AuthorUsername,
+	})
+
 	if err != nil {
+		log.Println(err.Error())
 		apiErr := dto.NewApiError(err)
 		c.AbortWithStatusJSON(apiErr.StatusCode, apiErr.Message)
 		return
@@ -114,6 +127,7 @@ func (h *ArticleHandler) DeleteArticle(c *gin.Context) {
 
 	err = h.articleService.DeleteArticle(c.Request.Context(), id)
 	if err != nil {
+		log.Println(err.Error())
 		apiErr := dto.NewApiError(err)
 		c.AbortWithStatusJSON(apiErr.StatusCode, apiErr.Message)
 		return
@@ -130,7 +144,7 @@ func (h *ArticleHandler) DeleteArticle(c *gin.Context) {
 // @Param id query string true "айди нужной статьи"
 // @Success 200 {object} dto.Success
 // @Failure 500 {object} dto.ApiError
-// @Router /api/article/delete [update]
+// @Router /api/article/delete [put]
 func (h *ArticleHandler) UpdateArticle(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -145,6 +159,7 @@ func (h *ArticleHandler) UpdateArticle(c *gin.Context) {
 
 	err = h.articleService.UpdateArticle(c.Request.Context(), id, dto.ArticleDTOtoArticle(newArticleDTO))
 	if err != nil {
+		log.Println(err.Error())
 		apiErr := dto.NewApiError(err)
 		c.AbortWithStatusJSON(apiErr.StatusCode, apiErr.Message)
 		return

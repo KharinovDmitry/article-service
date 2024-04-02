@@ -1,7 +1,7 @@
 package main
 
 import (
-	_ "article-service/cmd/docs"
+	_ "article-service/docs"
 	"article-service/internal/app"
 	"article-service/internal/config"
 	"flag"

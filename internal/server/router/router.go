@@ -1,6 +1,7 @@
 package router
 
 import (
+	_ "article-service/docs"
 	"article-service/internal/server/handlers"
 	"article-service/internal/server/middlewares"
 	"github.com/gin-gonic/gin"
@@ -23,6 +24,7 @@ func NewRouter(address string, articleHandler handlers.ArticleHandler) *Router {
 
 func (r *Router) Run() {
 	g := gin.New()
+	g.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	api := g.Group("/api")
 
@@ -38,8 +40,6 @@ func (r *Router) Run() {
 	g.GET("/health", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
-
-	g.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	g.Run(r.address)
 }

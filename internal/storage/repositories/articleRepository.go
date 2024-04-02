@@ -45,7 +45,7 @@ func (a *ArticleRepository) FindArticleByID(ctx context.Context, id int) (domain
 }
 
 func (a *ArticleRepository) GetAllArticles(ctx context.Context) ([]domain.Article, error) {
-	sql := "SELECT (id, title, text, tags, publication_date, author_username) FROM articles"
+	sql := "SELECT id, title, text, publication_date, author_username FROM articles"
 	var articles []dbModels.Article
 	err := a.db.Query(ctx, &articles, sql)
 	if err != nil {
@@ -55,7 +55,7 @@ func (a *ArticleRepository) GetAllArticles(ctx context.Context) ([]domain.Articl
 		return nil, err
 	}
 
-	sql = "SELECT (id, title) FROM tags"
+	sql = "SELECT id, title FROM tags"
 	var tags []dbModels.Tag
 	err = a.db.Query(ctx, &tags, sql)
 	if err != nil {
@@ -69,7 +69,7 @@ func (a *ArticleRepository) GetAllArticles(ctx context.Context) ([]domain.Articl
 }
 
 func (a *ArticleRepository) FindArticlesByTag(ctx context.Context, tagID int) ([]domain.Article, error) {
-	sql := "SELECT (id, title, text, tags, publication_date, author_username) FROM articles WHERE id IN (SELECT SELECT article_id FROM article_tag_pairs WHERE tag_id = $1)"
+	sql := "SELECT id, title, text, tags, publication_date, author_username FROM articles WHERE id IN (SELECT SELECT article_id FROM article_tag_pairs WHERE tag_id = $1)"
 	var articles []dbModels.Article
 	err := a.db.Query(ctx, &articles, sql, tagID)
 	if err != nil {
@@ -79,7 +79,7 @@ func (a *ArticleRepository) FindArticlesByTag(ctx context.Context, tagID int) ([
 		return nil, err
 	}
 
-	sql = "SELECT (id, title) FROM tags WHERE id IN (SELECT tag_id FROM article_tag_pairs WHERE article_id in (SELECT SELECT article_id FROM article_tag_pairs WHERE tag_id = $1))"
+	sql = "SELECT id, title FROM tags WHERE id IN (SELECT tag_id FROM article_tag_pairs WHERE article_id in (SELECT SELECT article_id FROM article_tag_pairs WHERE tag_id = $1))"
 	var tags []dbModels.Tag
 	err = a.db.Query(ctx, &tags, sql, tagID)
 	if err != nil {
@@ -93,8 +93,8 @@ func (a *ArticleRepository) FindArticlesByTag(ctx context.Context, tagID int) ([
 }
 
 func (a *ArticleRepository) AddArticle(ctx context.Context, article domain.Article) error {
-	sql := "INSERT INTO articles(text, title, author_username, publication_date)  VALUES ($1, $2, $3, $4)"
-	err := a.db.Query(ctx, sql, article.Text, article.Title, article.AuthorUsername, article.PublicationDate)
+	sql := `INSERT INTO articles(text, title, author_username, publication_date) VALUES ($1, $2, $3, $4)`
+	err := a.db.Execute(ctx, sql, article.Text, article.Title, article.AuthorUsername, article.PublicationDate)
 	if err != nil {
 		if errors.Is(err, sqlx.ErrNoRows) {
 			return storage.ErrArticleNotFound
